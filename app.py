@@ -266,6 +266,27 @@ def inject_custom_css():
                 color: #ffffff !important;
             }
 
+            pre, code, .stCodeBlock, .stCode {
+                background: #111827 !important;
+                color: #f8fafc !important;
+            }
+
+            pre *, code * {
+                color: #f8fafc !important;
+            }
+
+            .stMarkdown pre {
+                background: #111827 !important;
+                border-radius: 16px !important;
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                padding: 1rem !important;
+            }
+
+            .stMarkdown pre code {
+                color: #f8fafc !important;
+                text-shadow: none !important;
+            }
+
             .stTextInput input::placeholder,
             .stTextArea textarea::placeholder {
                 color: #94a3b8 !important;
@@ -741,6 +762,13 @@ def render_step_badge(number, label):
     )
 
 
+def clean_markdown_response(text):
+    if not text:
+        return text
+
+    return text.replace("```markdown", "").replace("```md", "").replace("```", "").strip()
+
+
 def main():
     inject_custom_css()
     initialize_session()
@@ -973,7 +1001,7 @@ def main():
 
         if st.session_state.resume_analysis:
             st.markdown("#### ATS feedback")
-            st.markdown(st.session_state.resume_analysis, unsafe_allow_html=True)
+            st.markdown(clean_markdown_response(st.session_state.resume_analysis))
 
     with results_tab:
         render_step_badge("4", "Results")
