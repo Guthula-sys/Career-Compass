@@ -1240,7 +1240,7 @@ def render_auth_screen():
     st.markdown(
         """
         <div class="hero-card">
-            <h1>Career Compass AI</h1>
+            <h1>Career Recommendation System AI</h1>
             <p>
                 Create an account to save your career reports, ATS analysis, and interview prep history.
             </p>
@@ -1821,7 +1821,7 @@ def main():
     st.markdown(
         """
         <div class="footer-card">
-            <strong>Career Compass AI</strong><br/>
+            <strong>Career Recommendation system </strong><br/>
             A student-friendly career planning workspace for exploring roles, improving resumes,
             and turning skill gaps into an action plan.
         </div>
