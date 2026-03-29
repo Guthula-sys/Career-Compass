@@ -19,7 +19,7 @@ from streamlit.errors import StreamlitSecretNotFoundError
 load_dotenv(encoding="utf-8-sig")
 
 st.set_page_config(
-    page_title="Career Compass AI",
+    page_title="Career Recommendation System ",
     page_icon="🎯",
     layout="wide",
 )
