@@ -1,4 +1,4 @@
-﻿# Career Compass AI
+﻿# Career Recommendation System alias Career Compass AI
 
 Career Compass AI is a Streamlit-based career guidance website that helps learners assess their skills, review resumes, explore target roles, and generate personalized roadmaps.
 
