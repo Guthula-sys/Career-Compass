@@ -19,7 +19,7 @@ from streamlit.errors import StreamlitSecretNotFoundError
 load_dotenv(encoding="utf-8-sig")
 
 st.set_page_config(
-    page_title="Career Recommendation System ",
+    page_title="Career Recommendation system",
     page_icon="🎯",
     layout="wide",
 )
@@ -519,6 +519,18 @@ def inject_custom_css():
                 text-transform: uppercase;
             }
 
+            .nav-button-row {
+                display: flex;
+                gap: 0.65rem;
+                flex-wrap: wrap;
+                margin: 0.75rem 0 1.1rem 0;
+            }
+
+            .nav-button-label {
+                font-size: 0.84rem;
+                font-weight: 700;
+            }
+
             .history-card {
                 background: rgba(255, 255, 255, 0.10);
                 border: 1px solid rgba(255, 255, 255, 0.12);
@@ -913,6 +925,7 @@ def initialize_session():
         "course_recommendations": "",
         "resume_rewrite": "",
         "current_user": None,
+        "active_page": "My Dashboard",
     }
 
     for key, value in defaults.items():
@@ -1155,7 +1168,7 @@ def build_pdf_bytes(student, role, desc, matched, missing, roadmap):
     doc = SimpleDocTemplate(buffer)
     styles = getSampleStyleSheet()
     content = [
-        Paragraph("Career Compass AI Report", styles["Title"]),
+        Paragraph("Career Recommendation System  Report", styles["Title"]),
         Spacer(1, 12),
         Paragraph(f"Name: {student['name']}", styles["Normal"]),
         Paragraph(f"Target Role: {role}", styles["Normal"]),
@@ -1213,6 +1226,29 @@ def render_step_badge(number, label):
     )
 
 
+def render_navigation_buttons():
+    page_names = [
+        "My Dashboard",
+        "Profile Setup",
+        "Skills & Role",
+        "Resume Review",
+        "Results",
+        "Interview Prep",
+    ]
+    nav_cols = st.columns(len(page_names))
+    for idx, page_name in enumerate(page_names):
+        button_type = "primary" if st.session_state.active_page == page_name else "secondary"
+        with nav_cols[idx]:
+            if st.button(
+                page_name,
+                key=f"nav-{page_name}",
+                use_container_width=True,
+                type=button_type,
+            ):
+                st.session_state.active_page = page_name
+                st.rerun()
+
+
 def clean_markdown_response(text):
     if not text:
         return text
@@ -1240,7 +1276,7 @@ def render_auth_screen():
     st.markdown(
         """
         <div class="hero-card">
-            <h1>Career Recommendation System AI</h1>
+            <h1>Career Compass AI</h1>
             <p>
                 Create an account to save your career reports, ATS analysis, and interview prep history.
             </p>
@@ -1431,11 +1467,9 @@ def main():
             unsafe_allow_html=True,
         )
 
-    dashboard_tab, overview_tab, skills_tab, resume_tab, results_tab, interview_tab = st.tabs(
-        ["My Dashboard", "Profile Setup", "Skills & Role", "Resume Review", "Results", "Interview Prep"]
-    )
+    render_navigation_buttons()
 
-    with dashboard_tab:
+    if st.session_state.active_page == "My Dashboard":
         render_step_badge("0", "Dashboard")
         st.subheader("Your saved progress at a glance")
         st.write("Review recent activity, reload previous work, and keep your career planning in one place.")
@@ -1461,7 +1495,7 @@ def main():
                         st.success("Snapshot loaded successfully.")
                         st.rerun()
 
-    with overview_tab:
+    if st.session_state.active_page == "Profile Setup":
         render_step_badge("1", "Profile Setup")
         st.subheader("Build your learner profile")
         st.write("Start with a few details so the recommendations feel more personal.")
@@ -1494,7 +1528,7 @@ def main():
             )
             st.success("Profile saved. You can move to the next tab.")
 
-    with skills_tab:
+    if st.session_state.active_page == "Skills & Role":
         render_step_badge("2", "Skills and Role")
         left, right = st.columns([1.2, 1])
 
@@ -1573,7 +1607,7 @@ def main():
                         "This role is not in the dataset, but you can still use it for ATS analysis and roadmap generation."
                     )
 
-    with resume_tab:
+    if st.session_state.active_page == "Resume Review":
         render_step_badge("3", "Resume Review")
         st.subheader("Check your resume against ATS expectations")
         uploaded_file = st.file_uploader("Upload a PDF or DOCX resume", type=["pdf", "docx"])
@@ -1628,7 +1662,7 @@ def main():
             if st.session_state.resume_rewrite:
                 st.markdown(clean_markdown_response(st.session_state.resume_rewrite))
 
-    with results_tab:
+    if st.session_state.active_page == "Results":
         render_step_badge("4", "Results")
         st.subheader("See your recommendation and next steps")
 
@@ -1730,7 +1764,7 @@ def main():
                     use_container_width=True,
                 )
 
-    with interview_tab:
+    if st.session_state.active_page == "Interview Prep":
         render_step_badge("5", "Interview Prep")
         st.subheader("Practice interview questions for your target role")
         st.write(
@@ -1821,7 +1855,7 @@ def main():
     st.markdown(
         """
         <div class="footer-card">
-            <strong>Career Recommendation system </strong><br/>
+            <strong>Career Compass AI</strong><br/>
             A student-friendly career planning workspace for exploring roles, improving resumes,
             and turning skill gaps into an action plan.
         </div>
