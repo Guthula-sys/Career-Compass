@@ -876,6 +876,7 @@ def verify_password(password, stored_hash):
     if not stored_hash:
         return False, None
 
+    # Backward compatibility for earlier SHA-256 users.
     if stored_hash.startswith("$2"):
         is_valid = bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8"))
         return is_valid, None
@@ -1174,10 +1175,9 @@ def generate_interview_quiz(client, student):
                             "explanation": str(item.get("explanation", "")).strip(),
                         }
                     )
-            if cleaned:
-                return cleaned
+            return cleaned
     except json.JSONDecodeError:
-        pass
+        return []
 
     return []
 
@@ -1459,8 +1459,6 @@ def render_auth_screen():
         unsafe_allow_html=True,
     )
 
-    
-
     login_tab, signup_tab = st.tabs(["Login", "Create Account"])
 
     with login_tab:
@@ -1505,7 +1503,6 @@ def render_auth_screen():
                     st.session_state.current_user = user
                     st.success("Account created successfully.")
                     st.rerun()
-
 
 
 def main():
@@ -1843,17 +1840,26 @@ def main():
         render_step_badge("4", "Results")
         st.subheader("See your recommendation and next steps")
 
-        ready = (
-            bool(student["name"])
-            and bool(student["skills"])
-            and bool(student["role"])
-            and bool(student["time"])
-        )
+        ready = bool(student["skills"]) and bool(student["role"])
 
         if not ready:
-            st.info("Complete your profile, add skills, and select a role to unlock recommendations.")
+            missing_items = []
+            if not student["skills"]:
+                missing_items.append("extract your skills")
+            if not student["role"]:
+                missing_items.append("select a target role")
+
+            if missing_items:
+                st.info(
+                    "Before getting recommendations, please "
+                    + " and ".join(missing_items)
+                    + "."
+                )
+            else:
+                st.info("Add a few more details to continue.")
         else:
             if st.button("Generate Career Report", type="primary", use_container_width=True):
+                st.session_state.course_recommendations = ""
                 with st.spinner("Comparing your profile with role requirements..."):
                     role_exists = any(
                         df["label"].str.lower() == student["role"]
@@ -1879,7 +1885,7 @@ def main():
                         student["degree"] or "Learner",
                         student["skills"],
                         student["role"].title(),
-                        student["time"],
+                        student["time"] or 10,
                     )
                 save_history_entry(
                     current_user["id"],
@@ -1945,7 +1951,7 @@ def main():
         render_step_badge("5", "Interview Prep")
         st.subheader("Practice interview questions for your target role")
         st.write(
-            "Generate multiple-choice interview questions tailored to your chosen role and current skills, then answer them by clicking options."
+            "Generate multiple-choice interview questions tailored to your chosen role and current skills, then answer them by clicking one option for each question."
         )
 
         role_ready = bool(student["role"])
@@ -1961,15 +1967,13 @@ def main():
             with prep_col3:
                 render_stat_card(
                     "Readiness",
-                    "Quiz mode",
-                    "Click answers, then submit",
+                    "Quiz Mode",
+                    "Click answers and submit",
                 )
 
             if st.button("Generate Interview Quiz", use_container_width=True):
                 with st.spinner("Preparing your interview quiz..."):
-                    st.session_state.interview_quiz = generate_interview_quiz(
-                        client, student
-                    )
+                    st.session_state.interview_quiz = generate_interview_quiz(client, student)
                     st.session_state.interview_quiz_result = ""
                 save_history_entry(
                     current_user["id"],
