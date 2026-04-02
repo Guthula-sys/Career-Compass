@@ -90,6 +90,34 @@ Return in clean markdown with clear headings and bullet points.
 """
 
 
+INTERVIEW_QUIZ_PROMPT = """
+You are an expert technical interviewer and aptitude trainer.
+
+Create 5 multiple-choice interview questions for this candidate profile.
+
+Candidate details:
+- Target Role: {target_role}
+- Current Skills: {skills}
+- Background: {background}
+
+Return only valid JSON in this exact structure:
+[
+  {{
+    "question": "Question text",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "answer": "Correct option text exactly as written above",
+    "explanation": "Short explanation"
+  }}
+]
+
+Rules:
+- Create exactly 5 questions
+- Each question must have exactly 4 options
+- Keep questions beginner-friendly and role-relevant
+- Make the JSON valid and do not add markdown fences
+"""
+
+
 INTERVIEW_EVAL_PROMPT = """
 You are an expert interviewer evaluating a candidate's answer.
 
@@ -151,6 +179,85 @@ Provide:
 
 Return in clean markdown with clear headings and bullet points.
 """
+
+
+APTITUDE_RESOURCES = {
+    "websites": [
+        ("IndiaBIX", "https://www.indiabix.com/"),
+        ("ExamVeda - Arithmetic Ability MCQs", "https://www.examveda.com/mcq-question-on-arithmetic-ability/"),
+        ("GeeksforGeeks - Aptitude Questions and Answers", "https://www.geeksforgeeks.org/aptitude/aptitude-questions-and-answers/"),
+    ],
+    "videos": [
+        ("Quantitative Aptitude and Logical Reasoning", "https://youtu.be/viKaYznFJbw?si=l7qM5Y3b0Mh-3kQ_"),
+        ("Verbal Ability Video", "https://youtu.be/TNkq01wrqUg?si=wlN7POgOkBoL5Uc3"),
+    ],
+    "quant_topics": [
+        "Number System",
+        "HCF and LCM",
+        "Percentages",
+        "Profit and Loss",
+        "Simple and Compound Interest",
+        "Ratio and Proportion",
+        "Averages",
+        "Time and Work",
+        "Pipes and Cisterns",
+        "Time, Speed and Distance",
+        "Boats and Streams",
+        "Mixtures and Alligations",
+        "Permutations and Combinations",
+        "Probability",
+        "Algebra",
+        "Logarithms",
+        "Mensuration",
+        "Data Interpretation",
+    ],
+    "reasoning_topics": [
+        "Number Series",
+        "Coding-Decoding",
+        "Blood Relations",
+        "Direction Sense",
+        "Seating Arrangement",
+        "Puzzles",
+        "Syllogisms",
+        "Venn Diagrams",
+        "Statement and Assumptions",
+        "Statement and Conclusions",
+        "Cause and Effect",
+        "Input-Output",
+        "Clocks and Calendars",
+    ],
+    "verbal_topics": [
+        "Reading Comprehension",
+        "Synonyms and Antonyms",
+        "Sentence Correction",
+        "Error Spotting",
+        "Fill in the Blanks",
+        "Para Jumbles",
+        "Active and Passive Voice",
+        "Direct and Indirect Speech",
+        "Vocabulary",
+    ],
+    "analytical_topics": [
+        "Caselets",
+        "Logical Data Interpretation",
+        "Charts and Graph-based Reasoning",
+    ],
+    "focus_topics": [
+        "Percentages",
+        "Ratio and Proportion",
+        "Time and Work",
+        "Averages",
+        "Number Series",
+        "Seating Arrangement",
+        "Puzzles",
+        "Reading Comprehension",
+    ],
+    "practice_pdfs": [
+        ("Verbal Ability Practice PDF", "https://drive.google.com/file/d/1GsIGcuzI1Y1fg-fFr7aAtSBaiNchlLLF/view?usp=sharing"),
+        ("Reasoning Practice PDF", "https://drive.google.com/file/d/1o70bbcgJ5koFdq_4TWFvcUG2Bdh7S3S0/view?usp=sharing"),
+        ("Quantitative Practice PDF", "https://drive.google.com/file/d/1Cf2NiFw6sBmZfdA8BxSDIF2SW5MTHwCS/view?usp=sharing"),
+    ],
+}
 
 
 def inject_custom_css():
@@ -519,6 +626,18 @@ def inject_custom_css():
                 text-transform: uppercase;
             }
 
+            .nav-button-row {
+                display: flex;
+                gap: 0.65rem;
+                flex-wrap: wrap;
+                margin: 0.75rem 0 1.1rem 0;
+            }
+
+            .nav-button-label {
+                font-size: 0.84rem;
+                font-weight: 700;
+            }
+
             .history-card {
                 background: rgba(255, 255, 255, 0.10);
                 border: 1px solid rgba(255, 255, 255, 0.12);
@@ -590,6 +709,26 @@ def inject_custom_css():
                 color: #475569;
                 font-size: 0.92rem;
                 line-height: 1.6;
+            }
+
+            .resource-card {
+                background: rgba(255, 255, 255, 0.95);
+                border: 1px solid rgba(11, 110, 79, 0.10);
+                border-radius: 18px;
+                padding: 1rem 1.05rem;
+                box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+                min-height: 140px;
+            }
+
+            .resource-card h4 {
+                margin-bottom: 0.55rem;
+                color: #0f172a;
+            }
+
+            .resource-card p {
+                color: #475569;
+                line-height: 1.65;
+                margin-bottom: 0;
             }
 
             @media (max-width: 900px) {
@@ -737,7 +876,6 @@ def verify_password(password, stored_hash):
     if not stored_hash:
         return False, None
 
-    # Backward compatibility for earlier SHA-256 users.
     if stored_hash.startswith("$2"):
         is_valid = bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8"))
         return is_valid, None
@@ -826,7 +964,7 @@ def get_user_history(user_id, limit=8):
 
 
 def summarize_history_payload(payload):
-    data = json.loads(payload)
+    data = payload if isinstance(payload, dict) else json.loads(payload)
     student = data.get("student", {})
     role = student.get("role", "")
     skills = student.get("skills", [])
@@ -844,7 +982,7 @@ def summarize_history_payload(payload):
 
 
 def load_history_snapshot(payload):
-    data = json.loads(payload)
+    data = payload if isinstance(payload, dict) else json.loads(payload)
     st.session_state.student = data.get("student", st.session_state.student)
     st.session_state.resume_analysis = data.get("resume_analysis", "")
     st.session_state.resume_text = data.get("resume_text", "")
@@ -855,6 +993,8 @@ def load_history_snapshot(payload):
     st.session_state.role_description = data.get("role_description", "")
     st.session_state.interview_questions = data.get("interview_questions", "")
     st.session_state.interview_feedback = data.get("interview_feedback", "")
+    st.session_state.interview_quiz = data.get("interview_quiz", [])
+    st.session_state.interview_quiz_result = data.get("interview_quiz_result", "")
     st.session_state.course_recommendations = data.get("course_recommendations", "")
     st.session_state.resume_rewrite = data.get("resume_rewrite", "")
 
@@ -871,6 +1011,8 @@ def current_snapshot():
         "role_description": st.session_state.role_description,
         "interview_questions": st.session_state.interview_questions,
         "interview_feedback": st.session_state.interview_feedback,
+        "interview_quiz": st.session_state.interview_quiz,
+        "interview_quiz_result": st.session_state.interview_quiz_result,
         "course_recommendations": st.session_state.course_recommendations,
         "resume_rewrite": st.session_state.resume_rewrite,
     }
@@ -910,9 +1052,12 @@ def initialize_session():
         "role_description": "",
         "interview_questions": "",
         "interview_feedback": "",
+        "interview_quiz": [],
+        "interview_quiz_result": "",
         "course_recommendations": "",
         "resume_rewrite": "",
         "current_user": None,
+        "active_page": "My Dashboard",
     }
 
     for key, value in defaults.items():
@@ -994,6 +1139,47 @@ def generate_interview_questions(client, student):
         messages=[{"role": "user", "content": prompt}],
     )
     return response.choices[0].message.content
+
+
+def generate_interview_quiz(client, student):
+    prompt = INTERVIEW_QUIZ_PROMPT.format(
+        target_role=student["role"].title(),
+        skills=", ".join(student["skills"]) if student["skills"] else "No skills provided",
+        background=student["degree"] or student["year"] or "Learner",
+    )
+
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    content = response.choices[0].message.content.strip()
+
+    try:
+        quiz = json.loads(content)
+        if isinstance(quiz, list):
+            cleaned = []
+            for item in quiz:
+                if (
+                    isinstance(item, dict)
+                    and isinstance(item.get("question"), str)
+                    and isinstance(item.get("options"), list)
+                    and len(item.get("options")) == 4
+                    and isinstance(item.get("answer"), str)
+                ):
+                    cleaned.append(
+                        {
+                            "question": item["question"].strip(),
+                            "options": [str(opt).strip() for opt in item["options"]],
+                            "answer": item["answer"].strip(),
+                            "explanation": str(item.get("explanation", "")).strip(),
+                        }
+                    )
+            if cleaned:
+                return cleaned
+    except json.JSONDecodeError:
+        pass
+
+    return []
 
 
 def extract_question_list(markdown_text):
@@ -1213,6 +1399,30 @@ def render_step_badge(number, label):
     )
 
 
+def render_navigation_buttons():
+    page_names = [
+        "My Dashboard",
+        "Profile Setup",
+        "Skills & Role",
+        "Resume Review",
+        "Results",
+        "Interview Prep",
+        "Aptitude Resources",
+    ]
+    nav_cols = st.columns(len(page_names))
+    for idx, page_name in enumerate(page_names):
+        button_type = "primary" if st.session_state.active_page == page_name else "secondary"
+        with nav_cols[idx]:
+            if st.button(
+                page_name,
+                key=f"nav-{page_name}",
+                use_container_width=True,
+                type=button_type,
+            ):
+                st.session_state.active_page = page_name
+                st.rerun()
+
+
 def clean_markdown_response(text):
     if not text:
         return text
@@ -1248,6 +1458,8 @@ def render_auth_screen():
         """,
         unsafe_allow_html=True,
     )
+
+    
 
     login_tab, signup_tab = st.tabs(["Login", "Create Account"])
 
@@ -1293,6 +1505,7 @@ def render_auth_screen():
                     st.session_state.current_user = user
                     st.success("Account created successfully.")
                     st.rerun()
+
 
 
 def main():
@@ -1431,11 +1644,9 @@ def main():
             unsafe_allow_html=True,
         )
 
-    dashboard_tab, overview_tab, skills_tab, resume_tab, results_tab, interview_tab = st.tabs(
-        ["My Dashboard", "Profile Setup", "Skills & Role", "Resume Review", "Results", "Interview Prep"]
-    )
+    render_navigation_buttons()
 
-    with dashboard_tab:
+    if st.session_state.active_page == "My Dashboard":
         render_step_badge("0", "Dashboard")
         st.subheader("Your saved progress at a glance")
         st.write("Review recent activity, reload previous work, and keep your career planning in one place.")
@@ -1461,7 +1672,7 @@ def main():
                         st.success("Snapshot loaded successfully.")
                         st.rerun()
 
-    with overview_tab:
+    if st.session_state.active_page == "Profile Setup":
         render_step_badge("1", "Profile Setup")
         st.subheader("Build your learner profile")
         st.write("Start with a few details so the recommendations feel more personal.")
@@ -1494,7 +1705,7 @@ def main():
             )
             st.success("Profile saved. You can move to the next tab.")
 
-    with skills_tab:
+    if st.session_state.active_page == "Skills & Role":
         render_step_badge("2", "Skills and Role")
         left, right = st.columns([1.2, 1])
 
@@ -1573,7 +1784,7 @@ def main():
                         "This role is not in the dataset, but you can still use it for ATS analysis and roadmap generation."
                     )
 
-    with resume_tab:
+    if st.session_state.active_page == "Resume Review":
         render_step_badge("3", "Resume Review")
         st.subheader("Check your resume against ATS expectations")
         uploaded_file = st.file_uploader("Upload a PDF or DOCX resume", type=["pdf", "docx"])
@@ -1628,7 +1839,7 @@ def main():
             if st.session_state.resume_rewrite:
                 st.markdown(clean_markdown_response(st.session_state.resume_rewrite))
 
-    with results_tab:
+    if st.session_state.active_page == "Results":
         render_step_badge("4", "Results")
         st.subheader("See your recommendation and next steps")
 
@@ -1730,11 +1941,11 @@ def main():
                     use_container_width=True,
                 )
 
-    with interview_tab:
+    if st.session_state.active_page == "Interview Prep":
         render_step_badge("5", "Interview Prep")
         st.subheader("Practice interview questions for your target role")
         st.write(
-            "Generate technical, scenario-based, and HR questions tailored to your chosen role and current skills."
+            "Generate multiple-choice interview questions tailored to your chosen role and current skills, then answer them by clicking options."
         )
 
         role_ready = bool(student["role"])
@@ -1750,73 +1961,136 @@ def main():
             with prep_col3:
                 render_stat_card(
                     "Readiness",
-                    "Good to start" if student["skills"] else "Basic mode",
-                    "Questions work even with few skills",
+                    "Quiz mode",
+                    "Click answers, then submit",
                 )
 
-            if st.button("Generate Interview Questions", use_container_width=True):
-                with st.spinner("Preparing your interview practice set..."):
-                    st.session_state.interview_questions = generate_interview_questions(
+            if st.button("Generate Interview Quiz", use_container_width=True):
+                with st.spinner("Preparing your interview quiz..."):
+                    st.session_state.interview_quiz = generate_interview_quiz(
                         client, student
                     )
+                    st.session_state.interview_quiz_result = ""
                 save_history_entry(
                     current_user["id"],
                     "interview",
-                    f"Interview prep for {student['role'].title()}",
+                    f"Interview quiz for {student['role'].title()}",
                     current_snapshot(),
                 )
 
-            if st.session_state.interview_questions:
-                st.markdown("#### Personalized interview set")
-                st.markdown(clean_markdown_response(st.session_state.interview_questions))
+            if st.session_state.interview_quiz:
+                st.markdown("#### Personalized interview quiz")
+                with st.form("interview_quiz_form"):
+                    selected_answers = []
+                    for idx, item in enumerate(st.session_state.interview_quiz, start=1):
+                        st.markdown(f"**Q{idx}. {item['question']}**")
+                        selected = st.radio(
+                            f"Choose your answer for question {idx}",
+                            item["options"],
+                            key=f"quiz-option-{idx}",
+                        )
+                        selected_answers.append(selected)
+                        st.markdown("")
 
-                st.markdown("#### Practice your answer")
-                extracted_questions = extract_question_list(
-                    clean_markdown_response(st.session_state.interview_questions)
-                )
+                    submitted_quiz = st.form_submit_button("Submit Quiz", use_container_width=True)
 
-                if extracted_questions:
-                    selected_question = st.selectbox(
-                        "Choose a question to answer",
-                        extracted_questions,
-                    )
-                else:
-                    selected_question = st.text_input(
-                        "Enter the interview question",
-                        placeholder="Paste or type a question here",
-                    )
-
-                answer_text = st.text_area(
-                    "Write your answer",
-                    height=180,
-                    placeholder="Type your interview answer here...",
-                )
-
-                if st.button("Evaluate My Answer", use_container_width=True):
-                    if not selected_question or not str(selected_question).strip():
-                        st.warning("Please choose or enter a question first.")
-                    elif not answer_text.strip():
-                        st.warning("Please write your answer before evaluation.")
-                    else:
-                        with st.spinner("Reviewing your answer like an interviewer..."):
-                            st.session_state.interview_feedback = evaluate_interview_answer(
-                                client,
-                                student,
-                                str(selected_question).strip(),
-                                answer_text.strip(),
-                            )
-                        save_history_entry(
-                            current_user["id"],
-                            "interview-feedback",
-                            f"Interview answer review for {student['role'].title()}",
-                            current_snapshot(),
+                if submitted_quiz:
+                    correct_count = 0
+                    result_lines = []
+                    for idx, (item, selected) in enumerate(
+                        zip(st.session_state.interview_quiz, selected_answers), start=1
+                    ):
+                        is_correct = selected == item["answer"]
+                        if is_correct:
+                            correct_count += 1
+                        status = "Correct" if is_correct else "Incorrect"
+                        result_lines.append(
+                            f"**Q{idx}: {status}**  \n"
+                            f"Your answer: {selected}  \n"
+                            f"Correct answer: {item['answer']}  \n"
+                            f"Explanation: {item.get('explanation') or 'No explanation provided.'}"
                         )
 
-                if st.session_state.interview_feedback:
-                    st.markdown("#### Interview feedback")
-                    st.markdown(
-                        clean_markdown_response(st.session_state.interview_feedback)
+                    score_percent = int((correct_count / len(st.session_state.interview_quiz)) * 100)
+                    st.session_state.interview_quiz_result = (
+                        f"### Your Score: {correct_count}/{len(st.session_state.interview_quiz)} ({score_percent}%)\n\n"
+                        + "\n\n".join(result_lines)
                     )
+                    save_history_entry(
+                        current_user["id"],
+                        "interview-feedback",
+                        f"Interview quiz result for {student['role'].title()}",
+                        current_snapshot(),
+                    )
+
+                if st.session_state.interview_quiz_result:
+                    st.markdown("#### Quiz feedback")
+                    st.markdown(st.session_state.interview_quiz_result)
+
+    if st.session_state.active_page == "Aptitude Resources":
+        render_step_badge("6", "Aptitude Resources")
+        st.subheader("Aptitude preparation resources")
+        st.write(
+            "Use these free websites, videos, topic checklists, and practice PDFs to prepare for aptitude, reasoning, and verbal rounds."
+        )
+
+        top_res_col1, top_res_col2 = st.columns(2)
+        with top_res_col1:
+            st.markdown(
+                """
+                <div class="resource-card">
+                    <h4>How to use this section</h4>
+                    <p>Start with the focus topics first, practice a few questions every day, and then move to full topic-wise revision using the websites and PDFs below.</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with top_res_col2:
+            st.markdown(
+                """
+                <div class="resource-card">
+                    <h4>Best beginner strategy</h4>
+                    <p>Pick one quantitative topic, one reasoning topic, and one verbal topic every week. Solve practice questions, then revise weak areas with the videos.</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        web_col, vid_col = st.columns(2)
+        with web_col:
+            st.markdown("#### Free websites")
+            for title, url in APTITUDE_RESOURCES["websites"]:
+                st.markdown(f"- [{title}]({url})")
+        with vid_col:
+            st.markdown("#### Helpful videos")
+            for title, url in APTITUDE_RESOURCES["videos"]:
+                st.markdown(f"- [{title}]({url})")
+
+        topic_col1, topic_col2 = st.columns(2)
+        with topic_col1:
+            st.markdown("#### Quantitative Aptitude")
+            for item in APTITUDE_RESOURCES["quant_topics"]:
+                st.markdown(f"- {item}")
+            st.markdown("#### Verbal Ability")
+            for item in APTITUDE_RESOURCES["verbal_topics"]:
+                st.markdown(f"- {item}")
+        with topic_col2:
+            st.markdown("#### Logical Reasoning")
+            for item in APTITUDE_RESOURCES["reasoning_topics"]:
+                st.markdown(f"- {item}")
+            st.markdown("#### Data Analysis / Analytical Ability")
+            for item in APTITUDE_RESOURCES["analytical_topics"]:
+                st.markdown(f"- {item}")
+
+        st.markdown("#### Focus first")
+        focus_cols = st.columns(4)
+        for idx, item in enumerate(APTITUDE_RESOURCES["focus_topics"]):
+            with focus_cols[idx % 4]:
+                st.markdown(f"- {item}")
+
+        st.markdown("#### Practice PDFs")
+        for title, url in APTITUDE_RESOURCES["practice_pdfs"]:
+            st.markdown(f"- [{title}]({url})")
 
     st.markdown(
         """
